@@ -4,14 +4,22 @@ import math
 
 GRID_SIZE : int = 20
 GRID_COLOR : Color = DARKGRAY
+MINIMAP_STEP : int = 10
 
 class Renderer:
-    def __init__(self, grid, player):
+    def __init__(self, grid, player, width, height):
         self.grid = grid
         self.player = player
+        self.width = width
+        self.height = height
+
+        # values for rendering the viewport and minimap
+        self.start_angle = self.player.rot - self.player.fov / 2
+        self.viewport_step = self.player.fov / (self.width - 1)
+        self.minimap_step = self.player.fov / (MINIMAP_STEP - 1)
 
     def draw(self):
-       # self._draw_viewport()
+        self._draw_viewport()
         self._draw_minimap()
 
     def _draw_minimap(self):
@@ -32,10 +40,11 @@ class Renderer:
         #draw_line(int(self.player.pos.x * GRID_SIZE), int(self.player.pos.y * GRID_SIZE), int(self.player.pos.x * GRID_SIZE) + int(self.player.dir.x * GRID_SIZE),int(self.player.pos.y * GRID_SIZE) + int(self.player.dir.y * GRID_SIZE), self.player.color)
 
     def _draw_rays(self):
-        for i in range(int(self.player.rot - self.player.fov/2), int(self.player.rot + self.player.fov/2), 5):
+        ray_angles = [self.start_angle + i * self.minimap_step for i in range(MINIMAP_STEP)]
+        for angle in ray_angles:
             dir = Vector2(0,0)
-            dir.x = math.cos(math.radians(i))
-            dir.y = math.sin(math.radians(i))
+            dir.x = math.cos(math.radians(angle + self.player.rot))
+            dir.y = math.sin(math.radians(angle + self.player.rot))
             self._draw_ray(dir, self.grid)
 
     def _draw_ray(self, dir, grid):
@@ -89,12 +98,23 @@ class Renderer:
             #    draw_circle(circle_x, circle_y, 2, DARKGREEN)
 
     def _draw_viewport(self):
-        dir = Vector2(0, 0)
-        dir.x = math.cos(math.radians(self.player.rot))
-        dir.y = math.sin(math.radians(self.player.rot))
-        self._draw_slice(dir, self.grid)
+        ray_angles = [self.start_angle + i * self.viewport_step for i in range(self.width)]
+        for i, angle in enumerate(ray_angles):
+            dir = Vector2(0, 0)
+            dir.x = math.cos(math.radians(angle + self.player.rot))
+            dir.y = math.sin(math.radians(angle + self.player.rot))
+            self._draw_slice(i, dir, self.grid)
 
-    def _draw_slice(self, dir, grid):
+    def _draw_line(self, i, side, dist):
+        if dist == 0:
+            return
+        line_h = int(1000 / dist)
+        if line_h > 1000:
+            line_h = 1000
+        line_color = GREEN if side == 1 else DARKGREEN
+        draw_line(i, int(self.height/2 - line_h / 2), i , int(self.height/2 + line_h / 2), line_color)
+
+    def _draw_slice(self, i, dir, grid):
         pos_x = self.player.pos.x
         pos_y = self.player.pos.y
 
@@ -106,37 +126,37 @@ class Renderer:
 
         if dir.x < 0:
             step_x = -1
+            side = 0
             side_dist_x = (pos_x - map_x) * delta_dist_x
         else:
             step_x = 1
+            side = 0
             side_dist_x = (map_x + 1.0 - pos_x) * delta_dist_x
         if dir.y < 0:
             step_y = -1
+            side = 1
             side_dist_y = (pos_y - map_y) * delta_dist_y
         else:
             step_y = 1
+            side = 1
             side_dist_y = (map_y + 1.0 - pos_y) * delta_dist_y
 
         steps = 0
         hit = False
-
-        while (steps < 10 and hit == False):
-            # jump to next map square, eather in x-direction, or in y-direction
+        while (steps < 20 and hit == False):
             if side_dist_x < side_dist_y:
                 distance = side_dist_x
                 side_dist_x += delta_dist_x
                 map_x += step_x
+                side = 0
             else:
                 distance = side_dist_y
                 side_dist_y += delta_dist_y
                 map_y += step_y
+                side = 1
 
             steps += 1
-            circle_x = int((pos_x + dir.x * distance) * GRID_SIZE)
-            circle_y = int((pos_y + dir.y * distance) * GRID_SIZE)
             if grid.get_value(map_x, map_y):
                 hit = True
-                draw_circle(circle_x, circle_y, 4, GREEN)
-                draw_line(int(pos_x * GRID_SIZE), int(pos_y * GRID_SIZE), circle_x, circle_y, GREEN)
-            # else: # circles on all inbetween gridlines
-            #    draw_circle(circle_x, circle_y, 2, DARKGREEN)
+                self._draw_line(i, side, distance)
+
