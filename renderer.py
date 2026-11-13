@@ -28,6 +28,7 @@ class Renderer:
         self._draw_player()
 
     def _draw_grid(self):
+        draw_rectangle(0,0,len(self.grid.grid[0]) * GRID_SIZE, len(self.grid.grid) * GRID_SIZE, BLACK)
         for y in range(len(self.grid.grid)):
             for x in range(len(self.grid.grid[y])):
                 if self.grid.grid[y][x] == 1:
@@ -111,7 +112,8 @@ class Renderer:
         line_h = int(1000 / dist)
         if line_h > 1000:
             line_h = 1000
-        line_color = GREEN if side == 1 else DARKGREEN
+        line_shade = clamp(1 - (dist / 10), 0,1)
+        line_color = color_from_hsv(120, 0.5, line_shade) if side == 1 else color_from_hsv(30, 0.5, line_shade)
         draw_line(i, int(self.height/2 - line_h / 2), i , int(self.height/2 + line_h / 2), line_color)
 
     def _draw_slice(self, i, dir, grid):
