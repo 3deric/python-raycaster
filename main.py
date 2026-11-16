@@ -10,7 +10,7 @@ WINDOW_CLEAR_COLOR : Color = BLACK
 # Create Raylib Window
 window = init_window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_NAME)
 grid = grid.Grid()
-player = player.Player(Vector2(1,1))
+player = player.Player(Vector2(1,1.1))
 renderer = renderer.Renderer(grid, player, WINDOW_WIDTH, WINDOW_HEIGHT)
 
 # Raylib Main Loop
