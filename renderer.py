@@ -4,9 +4,9 @@ import math
 
 GRID_SIZE : int = 20
 GRID_COLOR : Color = DARKGRAY
-MINIMAP_RAYS : int = 10
-VIEWPORT_RAYS : int = 200
-RAYS : int = 500
+MINIMAP_RAYS : int = 9
+VIEWPORT_RAYS : int = 1000
+RAYS : int = 1000
 
 class Renderer:
     def __init__(self, grid, player, width, height):
@@ -16,10 +16,7 @@ class Renderer:
         self.height = height
 
         # values for rendering the viewport and minimap
-        self.ray_distances = [0.0] * RAYS
-        self.ray_side =[0] * RAYS
-        self.ray_dir = [0.0] * RAYS
-        self.hits = [False] * RAYS
+        self.ray_hit = [()] * RAYS
 
         self.start_angle = self.player.rot - self.player.fov / 2
         self.ray_step = self.player.fov / (RAYS - 1)
@@ -49,24 +46,25 @@ class Renderer:
         draw_line(int(self.player.pos.x * GRID_SIZE), int(self.player.pos.y * GRID_SIZE), int(self.player.pos.x * GRID_SIZE) + int(self.player.dir.x * GRID_SIZE),int(self.player.pos.y * GRID_SIZE) + int(self.player.dir.y * GRID_SIZE), self.player.color)
 
     def _draw_rays_minimap(self):
-        indices = [i * (len(self.ray_distances) - 1) // (MINIMAP_RAYS - 1) for i in range(MINIMAP_RAYS)]
+        indices = [i * (len(self.ray_hit) - 1) // (MINIMAP_RAYS - 1) for i in range(MINIMAP_RAYS)]
         for i in indices:
-            dir = self.ray_dir[i]
-            dist = self.ray_distances[i]
+            dir = self.ray_hit[i][1]
+            dist = self.ray_hit[i][0]
             end_x = int((self.player.pos.x + dir.x * dist) * GRID_SIZE)
             end_y = int((self.player.pos.y + dir.y * dist) * GRID_SIZE)
             draw_line(int(self.player.pos.x * GRID_SIZE), int(self.player.pos.y * GRID_SIZE), end_x, end_y, GREEN)
 
     def _draw_viewport(self):
-        indices = [i * (len(self.ray_distances) - 1) // (VIEWPORT_RAYS - 1) for i in range(VIEWPORT_RAYS)]
+        indices = [i * (len(self.ray_hit) - 1) // (VIEWPORT_RAYS - 1) for i in range(VIEWPORT_RAYS)]
         for i in indices:
-            if self.hits[i] == False:
+            if self.ray_hit[i][3] == False:
                 continue
-            dist = self.ray_distances[i]
-            side = self.ray_side[i]
+            dist = self.ray_hit[i][0]
+            side = self.ray_hit[i][2]
+            u = self.ray_hit[i][4]
             x = int(i * self.width / indices[-1])
-            #self._draw_line(x, side, dist)
-            self._draw_rect(x, side, dist)
+            self._draw_line(x, side, dist, u)
+            #self._draw_rect(x, side, dist)
 
     def _cast_rays(self):
         ray_angles = [self.start_angle + i * self.ray_step for i in range(RAYS)]
@@ -104,7 +102,6 @@ class Renderer:
 
         steps = 0
         hit = False
-
         while steps < 20 and hit == False:
             # jump to next map square, eather in x-direction, or in y-direction
             if side_dist_x < side_dist_y:
@@ -112,28 +109,28 @@ class Renderer:
                 side_dist_x += delta_dist_x
                 map_x += step_x
                 side = 0
+                u = (pos_y + distance * dir.y) % 1
             else:
                 distance = side_dist_y
                 side_dist_y += delta_dist_y
                 map_y += step_y
                 side = 1
+                u = (pos_x + distance * dir.x) % 1
 
             steps += 1
             if grid.get_value(map_x, map_y):
                 hit = True
-        self.ray_side[i] = side
-        self.ray_distances[i] = distance
-        self.ray_dir[i] = dir
-        self.hits[i] = hit
 
-    def _draw_line(self, i, side, dist):
+        self.ray_hit[i] = (distance, dir, side, hit, u)
+
+    def _draw_line(self, i, side, dist,u):
         if dist == 0:
             return
         line_h = int(1000 / dist)
         if line_h > 1000:
             line_h = 1000
-        line_shade = clamp(1 - (dist / 10), 0,1)
-        line_color = color_from_hsv(120, 0.5, line_shade) if side == 1 else color_from_hsv(30, 0.5, line_shade)
+        line_shade = 1 #clamp(1 - (dist / 10), 0,1)
+        line_color = color_from_hsv(u * 360, 0.5, line_shade) if side == 1 else color_from_hsv(u * 360 + 30, 0.5, line_shade)
         draw_line(i, int(self.height/2 - line_h / 2), i , int(self.height/2 + line_h / 2), line_color)
 
     def _draw_rect(self, i, side, dist):
@@ -144,4 +141,4 @@ class Renderer:
             line_h = 1000
         rect_shade = clamp(1 - (dist / 10), 0,1)
         rect_color = color_from_hsv(120, 0.5, rect_shade) if side == 1 else color_from_hsv(30, 0.5, rect_shade)
-        draw_rectangle(i, int(self.height/2 - line_h / 2), int(self.width / VIEWPORT_RAYS) + 2, int(line_h), rect_color)
+        draw_rectangle(i, int(self.height/2 - line_h / 2), int(self.width / VIEWPORT_RAYS), int(line_h), rect_color)
